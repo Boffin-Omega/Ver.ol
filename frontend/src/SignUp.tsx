@@ -11,12 +11,13 @@ import {
   FieldTitle,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import {Link} from 'react-router'
+import SubmitButton from "@/components/SubmitButton.tsx"
 
 export default function SignUp(){
     return (
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md bg-white p-10">
+            <h1 className="font-bold text-4xl mb-4 text-center">Sign up</h1>
             <form>
                 <FieldGroup>
                     <Field>
@@ -38,7 +39,7 @@ export default function SignUp(){
                     </Field>
 
                     <Field orientation="horizontal">
-                        <Button type="submit">Sign up</Button>
+                        <SubmitButton text={"Sign up"} />
                     </Field>
 
                     <p>Already have an account ? <Link to="/login">Login</Link></p>

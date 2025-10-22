@@ -3,7 +3,13 @@ import SignUp from './SignUp.tsx'
 import Login from './Login.tsx'
 import ErrorPage from './ErrorPage.tsx'
 import ButtonList from './components/buttonList.tsx'
+import Mainview from './Mainview.tsx'
+import CreateView from './CreateView.tsx'
+import RepoView , {repoLoader as loader} from './RepoView.tsx'
 
+import PrivateRoute from './PrivateRoutes.tsx'
+
+let isAuthenticated = true; //some auth logic
 const routes = [
     {
         path: "/",
@@ -21,6 +27,27 @@ const routes = [
             {
                 path: 'login',
                 element: <Login></Login>
+            },
+        ],
+
+    },
+    {
+        path:"/app",
+        element: <PrivateRoute isAuthenticated={isAuthenticated} />,
+        children:[
+            {
+                index:true,
+                element: <Mainview /> //mainview
+            },
+            {
+                path:"createview",
+                element:<CreateView />
+            },
+            {
+                path: "repoview/:repoId",
+                element: <RepoView />,
+                loader: loader,
+                errorElement: <ErrorPage />,
             }
         ]
     }
