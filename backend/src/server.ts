@@ -5,7 +5,7 @@ import {initGridFS} from './config/gridfs';
 import repoRoutes from './routes/repoRoutes';
 
 // Initialize DB and GridFS
-connectDB();
+await connectDB();
 initGridFS(conn);
 
 const app: Application = express();
