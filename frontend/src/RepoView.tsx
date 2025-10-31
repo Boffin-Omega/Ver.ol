@@ -1,11 +1,4 @@
 import { useParams, useLoaderData } from "react-router";
-import { getRepoById } from "./data/repos.ts";
-
-export async function repoLoader({ params }) {
-  const { repoId } = params;
-  const repo = await getRepoById(repoId);
-  return repo;
-}
 
 export default function RepoView() {
   const { repoId } = useParams();

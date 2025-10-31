@@ -12,14 +12,14 @@ await connectDB();
 await initGridFS(conn); // Wait for GridFS to be initialized
 
 const app: Application = express();
-const PORT: number = parseInt(process.env.PORT || '3000', 10);
-
+const PORT: number = parseInt(process.env.BACKEND_PORT || '3000', 10);
+const HOST:string = (process.env.BACKEND_HOST || 'localhost')
 // Replace: app.use(cors());
 
 // With this specific configuration:
 const corsOptions = {
     // 1. Specify the EXACT origin of your frontend dev server
-    origin: 'http://localhost:5173', 
+    origin: `http://${process.env.FRONTEND_HOST}:${process.env.FRONTEND_PORT}`, 
     
     // 2. Allow all common methods used in REST APIs
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
@@ -49,4 +49,4 @@ app.use('/app/repo', repoRouter); // mounting repo routes
 
 
 // Starting Server
-app.listen(PORT, () => console.log(`Server started on http://localhost:${PORT}`));
+app.listen(PORT,HOST, () => console.log(`Server started on http://${HOST}:${PORT}`));

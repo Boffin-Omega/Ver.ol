@@ -7,7 +7,7 @@ import {type ICommit, CommitSchema} from './commit.js';
 export interface IRepository extends Document {
     name: String;
     owner: Types.ObjectId; // reference to the user who owns the repo
-    commits: ICommit[]; // array of version snapshots
+    commits: Types.ObjectId[]; // array of version snapshots
 }
 
 export const RepositorySchema: Schema<IRepository> = new Schema ({
@@ -29,9 +29,11 @@ export const RepositorySchema: Schema<IRepository> = new Schema ({
         required: true
     },
 
-    commits: {
-        type: [CommitSchema]
-    }
+    commits: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Commit', // Tells Mongoose which model to look up
+                default:[]
+        }]
 },
 {
     timestamps: true

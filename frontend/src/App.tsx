@@ -1,5 +1,5 @@
 import {Sidebar, SidebarHeader, 
-    SidebarContent,  SidebarMenu,
+    SidebarContent, 
   SidebarMenuButton,
   SidebarMenuItem, SidebarGroup,
   SidebarGroupLabel,
@@ -8,23 +8,37 @@ import {Sidebar, SidebarHeader,
 
   import {
   Command,
-  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
-  CommandShortcut,
+
 } from "@/components/ui/command"
 
-import {Outlet, Link} from 'react-router'
+import {Outlet, Link, useLoaderData} from 'react-router'
 import Navbar02 from "./components/Navbar02";
-import { repos } from "./data/repos.ts"
 
-//this should come from server
 
+//shud check up on this interface
+interface repo{
+    id:string
+    name:string,
+    owner:string,
+    commits: string[],
+    createdAt: string; 
+    updatedAt: string; 
+    __v: number;
+}
 export default function App(){
+    const repos = useLoaderData();
+    // const repos = [
+    //     {
+    //         id:'r1',
+    //         name:"Repo 1"
+    //     }
+    // ]
+    console.log(repos)
     return (
         <SidebarProvider>
             <Sidebar className="grow-1">
@@ -50,11 +64,14 @@ export default function App(){
                                         <CommandEmpty>No results found.</CommandEmpty>
 
                                         <CommandGroup heading="Your repositories">
-                                            {repos.map((repo) => (
-                                                <CommandItem key={repo.id}>
-                                                    <Link to={`/app/repoview/${repo.id}`}>{repo.name}</Link>
+                                            {repos.length ?
+                                                repos.map((repo:repo) => (
+                                                <CommandItem key={`C-${repo.id}`} id={repo.id}>
+                                                    <Link to={`/app/repoview/${repo.id}`} key={repo.id}>{repo.name}</Link>
                                                 </CommandItem>
-                                            ))}
+                                            ))
+                                            :<div>No repositories</div>
+                                            }
 
                                         </CommandGroup>
                                     </CommandList>
@@ -69,7 +86,9 @@ export default function App(){
                 <div className="self-end">
                     <Navbar02 />
                 </div>
-                <Outlet></Outlet>
+                <Outlet>
+
+                </Outlet>
             </div>
         </SidebarProvider>
 

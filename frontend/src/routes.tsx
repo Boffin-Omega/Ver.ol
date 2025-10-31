@@ -1,3 +1,5 @@
+import type { RouteObject } from 'react-router'
+
 import LandingPage from './LandingPage.tsx'
 import SignUp from './SignUp.tsx'
 import Login from './Login.tsx'
@@ -5,12 +7,15 @@ import ErrorPage from './ErrorPage.tsx'
 import ButtonList from './components/buttonList.tsx'
 import Mainview from './Mainview.tsx'
 import CreateView from './CreateView.tsx'
-import RepoView , {repoLoader as loader} from './RepoView.tsx'
+import App from './App.tsx'
+import RepoView from './RepoView.tsx'
 import {newRepoAction} from './actions/newRepoAction.ts'
 import PrivateRoute from './PrivateRoutes.tsx'
 
-let isAuthenticated = true; //some auth logic
-const routes = [
+import {reposLoader} from './loaders/reposLoader.ts'
+const isAuthenticated = true; //some auth logic
+
+const routes:RouteObject[] = [
     {
         path: "/",
         element: <LandingPage />,
@@ -32,8 +37,11 @@ const routes = [
 
     },
     {
-        path:"/app",
-        element: <PrivateRoute isAuthenticated={isAuthenticated} />,
+        path:"/app/:userId",
+        element: <PrivateRoute isAuthenticated={isAuthenticated}><App /></PrivateRoute>,
+        loader: reposLoader,
+        errorElement: <ErrorPage />,
+
         children:[
             {
                 index:true,
@@ -47,7 +55,6 @@ const routes = [
             {
                 path: "repoview/:repoId",
                 element: <RepoView />,
-                loader: loader,
                 errorElement: <ErrorPage />,
             }
         ]

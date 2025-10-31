@@ -29,9 +29,9 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
     let repoName: string;
     let commitMessage: string | 'No message provided';
     let userId: string;
-    let commits :ICommit[] = [];
     let repoId :Types.ObjectId = new Types.ObjectId();
     let commitId :Types.ObjectId = new Types.ObjectId();
+    let commits :Types.ObjectId[] = [];
 
     const fileProcessingPromises:Promise<void>[] = []; // To track async unzipping work
     const bb = busboy({headers: req.headers});
@@ -144,7 +144,7 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
                 author:userId,
                 parentCommitId:null,
             })
-            commits.push(newCommit)
+            commits.push(commitId)
 
             const newRepo = await Repository.create({
                 _id:repoId,
@@ -155,7 +155,7 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
 
             //update user
             await User.findByIdAndUpdate(userId,
-                {$push: {repoList:newRepo}}
+                {$push: {repoList:repoId}}
                 
             )
             if (!res.headersSent) {
@@ -235,23 +235,24 @@ async function ensureFolders(repoId: Types.ObjectId, commitId: Types.ObjectId, e
     return parentNodeId;
 }
 
-export const getReposController = async (req: Request, res: Response): Promise<IRepository[] | void> => {
+export const getReposController = async (req: Request, res: Response): Promise<Response> => {
     try {
         const currentUser = await User.findById(req.params.userId)
             .populate('repoList'); // This returns full IRepository objects
 
         if (!currentUser) {
-            console.error('User not found')
+            console.error('User not found');
+            return res.status(404).json({ message: 'User not found' });
         }
 
         // The returned value is an array of full IRepository documents (due to populate)
         // We ensure the type is correctly asserted for the return line
-        const repoList = currentUser!.repoList as unknown as IRepository[]; 
-        console.log(repoList)
-        return repoList;
+        const repoList = currentUser.repoList as unknown as IRepository[]; 
+        console.log(repoList);
+        return res.status(200).json(repoList);
 
     } catch (error) {
         console.error("Error fetching repositories:", error);
-        res.status(500).json({ message: 'Internal server error.' });
+        return res.status(500).json({ message: 'Internal server error.' });
     }
 };
