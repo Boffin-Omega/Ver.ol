@@ -1,7 +1,7 @@
 import mongoose ,{Schema, Types, Model} from 'mongoose'
 
 export interface INode {
-    id: Types.ObjectId;
+    _id: Types.ObjectId;
     repoId: Types.ObjectId;
     commitId: Types.ObjectId;
     parentNodeId: Types.ObjectId|null;

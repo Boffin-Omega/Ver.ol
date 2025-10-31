@@ -12,7 +12,6 @@ export const repoRouter = express()
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
 
 const storage = multer.memoryStorage();
-const upload = multer({storage});
 
 /*
 either theres post request when user wants to 

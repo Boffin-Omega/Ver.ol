@@ -1,11 +1,13 @@
 // Note that Commit and Repository models reference user as the owner/author.
 
 import mongoose, {Schema, Document, Model} from 'mongoose';
-
+import type {IRepository} from './repository.js'
+import Repository from './repository.js'
 // Interface - defines the typescript structure for the user doc.
 export interface IUser extends Document {
     username: string;
     email: string;
+    repoList: IRepository[];
     // will include authentication as a later feature
 }
 
@@ -23,6 +25,11 @@ const UserSchema: Schema<IUser> = new Schema({
         type: String,
         required: true,
         unique: true
+    }
+    ,
+    repoList:{
+        type:[Repository],
+        default:[]
     }
 }, 
 {

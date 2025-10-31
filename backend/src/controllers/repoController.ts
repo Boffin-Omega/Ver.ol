@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import mongoose ,{ Types } from 'mongoose';
 import busboy from 'busboy';
 import unzipper from 'unzipper';
+import path from 'path'
 
 import * as storageService from '../services/storageService.js';
 import * as repoService from '../services/repoService.js';
@@ -10,9 +11,10 @@ import { getGfs } from '../config/multer.js';
 
 import type {IRepository} from '../models/repository.js'
 import type {ICommit} from '../models/commit.js';
-
+import type {INode} from '../models/node.js';
 import Repository from '../models/repository.js'
 import Commit from '../models/commit.js'
+import Node from '../models/node.js'
 
 // Replace this with the actual authenticated user ID later 
 // const AUTHOR_ID = new Types.ObjectId('60d5ec49c69d7b0015b8d28e');
@@ -27,14 +29,20 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
     let commitMessage: string | 'No message provided';
     let userId: string;
     let commits :ICommit[] = [];
-    let repoId :Types.ObjectId;
+    let repoId :Types.ObjectId = new Types.ObjectId();
+    let commitId :Types.ObjectId = new Types.ObjectId();
 
     const fileProcessingPromises:Promise<void>[] = []; // To track async unzipping work
     const bb = busboy({headers: req.headers});
 
+
     bb.on('field', (key, value) => {
         if(key === 'repoName') {
-            if(!value) res.status(200).send('Please enter valid repo name!')//probably shouldnt be status 200 though
+            if (!value) {
+                res.status(400).json({ error: 'Repository name is required' });
+                bb.removeAllListeners(); // stop processing further fields/files
+                return;
+            }            
             repoName = value;
         }
         else if(key === 'commitMessage') {
@@ -55,7 +63,7 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
         }
 
         console.log(`\nStarting to process Zip: ${filename}`);
-        
+
         // 2. Pipe the incoming zip file stream to unzipper.Parse()
         const unzipperStream = fileStream.pipe(unzipper.Parse());
 
@@ -64,28 +72,41 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
             
             // unzipper emits an 'entry' event for each file found inside the zip
             unzipperStream.on('entry', async (entry) => {
-                const fileName = entry.path;
-                
+                let newNode:INode; //create node for every file/folder
+                let nodeType:string;
+                let nodeName:string;
+                console.log('reading entry',entry.path)
                 // Skip directories
                 if (entry.type !== 'File') {
                     entry.autodrain(); 
                     return;
                 }
-                
-                console.log(`Reading file inside zip: ${fileName}`);
+                nodeName = path.basename(entry.path)
+                console.log(`Reading file inside zip: ${nodeName}`);
 
                 try {
                     // 4. Read the content of the single file
                     //store it in gridfs
-                    const fileBuffer = await entry.buffer();
+                    const fileBuffer = await entry.buffer(); //potential choke here
                     // **********************************************
                     // 5. PROCESS YOUR SINGLE FILE CONTENT HERE
                     // The contentBuffer holds the data for ONE file.
                     // **********************************************
+                    let parentNodeId:Types.ObjectId | null = await ensureFolders(repoId,commitId,entry.path);
+
                     let gridFSFileId: Types.ObjectId | null = null; //use it in nodes collection
                     try{
                         gridFSFileId = await storageService.uploadFileToGridFS(fileBuffer, repoName, commitMessage);
-                        console.log(`Successfully read ${fileName}. Size: ${fileBuffer.length} bytes`);
+                        console.log(`Successfully read ${nodeName}. Size: ${fileBuffer.length} bytes`);
+                        //store into db
+                        await Node.create({
+                            repoId:repoId,
+                            commitId:commitId,
+                            parentNodeId:parentNodeId,
+                            name:nodeName,
+                            type:'file',
+                            gridFSFileId:gridFSFileId
+                        })
                         console.log(gridFSFileId)
 
                     }
@@ -95,7 +116,7 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
                     }
                                     
                 } catch (error) {
-                    console.error(`Error reading entry ${fileName}:`, error);
+                    console.error(`Error reading entry ${nodeName}:`, error);
                     // Force the stream to finish processing this entry and move on
                     entry.autodrain(); 
                 }
@@ -110,13 +131,13 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
     });
 
     // --- C. Wait for All Processing to Finish ---
-    bb.on('finish', async () => {
+    bb.on('close', async () => {
         try {
             // Wait for Busboy to finish AND all file processing promises to resolve
             //then create commit, finally create repo
             await Promise.all(fileProcessingPromises);
-            repoId = new Types.ObjectId()
             const newCommit = await Commit.create({
+                id:commitId,
                 repoId:repoId,
                 message:commitMessage,
                 author:userId,
@@ -164,75 +185,59 @@ export const getReposController = async(req:Request, res:Response): Promise<void
     
     res.send(repos)
 }
-//requires heavy modification
-// export const pushCommit = async (req: Request, res: Response): Promise<void> => {
 
-//     const repoId = new Types.ObjectId();
-//     const repoName = req.body.repoName;
-//     const commitMessage = req.body.commitMessage || 'No message provided';
 
-//     // check if file exists or is empty.
-//     const {buffer} = (req as PushRequest).file;
-//     if(!req.file || !buffer) {
-//         res.status(400).json({error: 'No repository zip was uploaded or file is empty'});
-//         return;
-//     }
+// Fix: Prevent duplicate folder creation by caching and locking folder paths.
+// Ensures concurrent uploads wait for the same folder creation instead of making duplicates.
+const folderCache = new Map<string, Types.ObjectId>();
+const folderLocks = new Map<string, Promise<Types.ObjectId>>();
 
-//     // check if the parameters include the repository name
-//     if(!repoName) {
-//         res.status(400).json({error: 'No repository name was provided for push operation'});
-//         return;
-//     }
+async function ensureFolders(repoId: Types.ObjectId, commitId: Types.ObjectId, entryPath: string) {
+    entryPath = entryPath.replace(/\\/g, "/").replace(/\/$/, "");
+    const parts = entryPath.split("/").filter(Boolean);
+    if (parts.length <= 1) return null;
 
-//     let gridFSFileId: Types.ObjectId | null = null;
+    let currentPath = "";
+    let parentNodeId: Types.ObjectId | null = null;
 
-//     try {
-//         const fileBuffer = buffer;
+    for (let i = 0; i < parts.length - 1; i++) {
+        const name = parts[i];
+        currentPath = `${currentPath}${currentPath ? '/' : ''}${name}`;
 
-//         // save file to gridfs (io operation)
-//         gridFSFileId = await storageService.uploadFileToGridFS(fileBuffer, repoName, commitMessage);
+        if (folderCache.has(currentPath)) {
+            parentNodeId = folderCache.get(currentPath)!;
+            continue;
+        }
 
-//         // prepare commit metadata
-//         const commitId = new Types.ObjectId();
-//         const newCommitData = {
-//             id: commitId, 
-//             repoId: repoId,
-//             message: commitMessage, // again a string
-//             parentCommitId:null, //first commit of repo
-//             author: AUTHOR_ID,
-//             timestamp: new Date(),
-//         }
+        // Wait if another ensureFolders call is already creating this folder
+        if (folderLocks.has(currentPath)) {
+            parentNodeId = await folderLocks.get(currentPath)!;
+            continue;
+        }
 
-//         const repository = await repoService.addNewCommit(repoName, newCommitData, newCommitData.author);
+        // Create a new lock
+        const lockPromise = (async ():Promise<Types.ObjectId> => {
+            let existing:INode|null = await Node.findOne({ repoId, commitId, parentNodeId, name, type: "folder" });
+            if (!existing) {
+                console.log("Creating new folder:", { name, parentNodeId });
+                existing = await Node.create({
+                    repoId,
+                    commitId,
+                    parentNodeId,
+                    name,
+                    type: "folder",
+                    gridFSFileId: null,
+                });
+            }
+            folderCache.set(currentPath, existing._id);
+            folderLocks.delete(currentPath);
+            return existing._id;
+        })();
 
-//         // if the response is a success
-//         res.status(201).json({
-//             message: 'Push Sucessful!',
-//             repo: repository.name,
-//             commit: newCommitData.id // or simply commitHash
-//         });
-//     }
+        folderLocks.set(currentPath, lockPromise);
+        parentNodeId = await lockPromise;
+    }
 
-//     catch(error) {
-//         console.error(`Push Pipeline Failed:${error}`);
-
-//         // here we perform a rollback i.e. delete the file if metadata failed to save
-//         if(gridFSFileId) {
-//             try {
-//                 const gfs = getGfs();
-//                 await gfs.delete(gridFSFileId); // manual deletion of gridfs file
-//                 console.warn(`Rollback successful: Deleted GridFs file ${gridFSFileId}`);
-//             }
-//             catch(cleanUpError) {
-//                 console.error(`Critical error, failed to clean up gridfs file ${gridFSFileId}`, cleanUpError);
-//             }
-//         }
-
-//         // error response
-//         res.status(500).json({
-//             error: 'Server error during commit. Rollback attempted.',
-//             details: (error as Error).message
-//         });
-//     }
-// };
+    return parentNodeId;
+}
 

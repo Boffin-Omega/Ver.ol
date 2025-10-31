@@ -1,8 +1,8 @@
 import mongoose, {Schema, Types, Model} from 'mongoose'
 
 // Interface - Defines the required fields for a single snapshot of the project state
-export interface ICommit {
-    id: Types.ObjectId;
+export interface ICommit extends Document{
+    _id?: Types.ObjectId;
     repoId: Types.ObjectId;
     message: string;
     author: Types.ObjectId; // reference to the user who pushed the commit
@@ -12,6 +12,11 @@ export interface ICommit {
 
 // Schema - Defines the structure for an embedded document
 export const CommitSchema = new Schema<ICommit> ({
+    _id: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        default: () => new Types.ObjectId() // This allows custom _id to be set, but provides a default if none is given
+    },
     repoId: {
         type: Schema.Types.ObjectId,
         ref: 'Repository',
