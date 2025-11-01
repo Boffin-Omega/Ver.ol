@@ -6,22 +6,17 @@ import type { Request, Response, NextFunction } from 'express';
 import type { IUser } from '../models/user.js';
 import User from '../models/user.js'
 
-// Helper for JWT generation (used by both signup and login)
-const createToken = (userId: string) => {
-    const payload = { user: { id: userId } };
-    return jwt.sign(
-        payload,
-        process.env.JWT_SECRET!, // Requires JWT_SECRET in .env
-        { expiresIn: '1h' }
-    );
-};
 // --- SIGN UP ---
 export const signUp = async (req: Request, res: Response): Promise<Response> => {
     try {
-        console.log(req)
+        console.log(req.body)
         const {email, password } = req.body;
 
         let {username} = req.body;
+
+        if(!email || !username || !password){
+            return res.status(400).json({msg:'Missing credentials!'})
+        }
         username = username.toLowerCase()
         // 1. Check if user exists
         let user = await User.findOne({ email });

@@ -12,25 +12,38 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import SubmitButton from "@/components/SubmitButton.tsx"
-import {Link} from 'react-router'
+import {Link, Form, useNavigate} from 'react-router-dom'
+import {useAuthStore} from './store/authStore'
+import { useEffect } from 'react'
 
 export default function Login(){
+    const navigate = useNavigate();
+    const { loginState, statusMessage } = useAuthStore();
+    
+    useEffect(() => {
+        if (loginState === 'success') {
+            const timer = setTimeout(() => {
+                navigate('/app');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [loginState, navigate]);
     return (
         <div className="w-full max-w-md bg-white p-10">
             <h1 className="font-bold text-4xl mb-4 text-center">Login</h1>
 
-            <form>
+            <Form method="post">
                 <FieldGroup>
                     <Field>
-                        <FieldLabel htmlFor="email">Email</FieldLabel>
-                        <Input type="email" id="email" autoComplete="off" aria-invalid placeholder="example@example.com"/>
-                        <FieldError>Please enter a valid email!</FieldError>
+                        <FieldLabel htmlFor="username">Username</FieldLabel>
+                        <Input type="text" id="username" name="username" autoComplete="off" placeholder=""/>
+                        {/* <FieldError>Please enter a valid email!</FieldError> */}
                     </Field>
 
                     <Field>
                         <FieldLabel htmlFor="pswrd">Enter your password</FieldLabel>
-                        <Input type="password" id="pswrd" autoComplete="off" aria-invalid/>
-                        <FieldError>Please enter a valid password</FieldError>
+                        <Input type="password" id="pswrd" name="password" autoComplete="off"/>
+                        {/* <FieldError>Please enter a valid password</FieldError> */}
                     </Field>
 
                     <Field orientation="horizontal">
@@ -39,7 +52,12 @@ export default function Login(){
                     <p>Don't have an account ? <Link to="/signup">Sign up</Link></p>
                 </FieldGroup>
 
-            </form>
+            </Form>
+            {loginState !== null && (
+                <div className={`${loginState === 'error' ? 'text-red-500' : 'text-lime-500'} text-center mt-4 transition-all`}>
+                    {statusMessage}
+                </div>
+            )}
         </div>
     );
 }

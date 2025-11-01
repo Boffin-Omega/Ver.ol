@@ -1,11 +1,14 @@
 import {redirect} from "react-router"
 import type {ActionFunctionArgs} from 'react-router'
+import {authFetch} from '../utils/authFetch'
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export async function newRepoAction({ request }: ActionFunctionArgs){
     const formData = await request.formData();
     console.log(formData);
     try{
-        const res = await fetch('http://localhost:3000/app/repo/upload',{
+        const res = await authFetch(`${BASE_URL}/app/repo/upload`,{
             method:'POST',
             body: formData,
         });

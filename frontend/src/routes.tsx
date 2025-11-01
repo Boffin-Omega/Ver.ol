@@ -10,10 +10,11 @@ import CreateView from './CreateView.tsx'
 import App from './App.tsx'
 import RepoView from './RepoView.tsx'
 import {newRepoAction} from './actions/newRepoAction.ts'
+import {loginAction, signUpAction} from './actions/authActions.ts'
 import PrivateRoute from './PrivateRoutes.tsx'
+import {useAuthStore} from './store/authStore.ts'
 
 import {reposLoader} from './loaders/reposLoader.ts'
-const isAuthenticated = true; //some auth logic
 
 const routes:RouteObject[] = [
     {
@@ -27,18 +28,20 @@ const routes:RouteObject[] = [
             },
             { 
                 path: 'signup',
-                element: <SignUp></SignUp>
+                element: <SignUp></SignUp>,
+                action:signUpAction
             },
             {
                 path: 'login',
-                element: <Login></Login>
+                element: <Login></Login>,
+                action:loginAction
             },
         ],
 
     },
     {
-        path:"/app/:userId",
-        element: <PrivateRoute isAuthenticated={isAuthenticated}><App /></PrivateRoute>,
+        path:"/app",
+        element: <PrivateRoute isAuthenticated={useAuthStore.getState().isAuthenticated}><App /></PrivateRoute>,
         loader: reposLoader,
         errorElement: <ErrorPage />,
 
