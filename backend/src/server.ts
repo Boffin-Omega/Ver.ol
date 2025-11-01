@@ -1,8 +1,11 @@
 import 'dotenv/config'; // Loads the .env variables
 import express from 'express'
+import passport from 'passport'
 import type {Application, Request, Response} from 'express';
 import cors from 'cors'
 import {connectDB, conn} from './config/db.js'
+import authRoutes from './routes/authRoutes.js';
+import { configurePassport } from './config/passportConfig.js';
 
 import {initGridFS} from './config/multer.js';
 import {repoRouter} from './routes/repoRoutes.js';
@@ -36,16 +39,17 @@ app.use(cors(corsOptions));
 // Middleware
 app.use(express.json()); // to parse json bodies such as commit messages
 app.use(express.urlencoded({extended: true})); // to handle url-encoded data
+app.use(passport.initialize());
 
-
+configurePassport();
 // Health Check route
 app.get('/', (req: Request, res: Response) => {
     res.send('VCS Backend is running. Status: OK');
 });
 
-
+app.use('/api/auth',authRoutes)
 // Main API Routes
-app.use('/app/repo', repoRouter); // mounting repo routes
+app.use('/app/repo', passport.authenticate('jwt', { session: false }),repoRouter); // mounting repo routes
 
 
 // Starting Server

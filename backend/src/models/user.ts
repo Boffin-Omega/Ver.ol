@@ -1,41 +1,43 @@
-// Note that Commit and Repository models reference user as the owner/author.
-
-import mongoose, {Schema, Document, Model, Types} from 'mongoose';
-// Interface - defines the typescript structure for the user doc.
+import mongoose, { Document, Schema, Types} from 'mongoose';
+// 1. Define the TypeScript Interface for Mongoose Document (INode is assumed to be defined elsewhere)
 export interface IUser extends Document {
     username: string;
     email: string;
-    repoList: Types.ObjectId[];
-    // will include authentication as a later feature
+    password: string; // Stored as a hash
+    repoList: Types.ObjectId[]; // Array of ObjectIds referencing the Repository collection
 }
 
-// Schema - Defines the MongoDB structure and rules
-const UserSchema: Schema<IUser> = new Schema({
+// 2. Define the Mongoose Schema
+const UserSchema: Schema = new Schema({
     username: {
         type: String,
         required: true,
         unique: true,
         trim: true,
-        maxlength: 30 // tweak-able
     },
-
     email: {
         type: String,
         required: true,
-        unique: true
-    }
-    ,
-    repoList: [{
+        unique: true,
+        lowercase: true,
+        trim: true,
+    },
+    password: {
+        type: String,
+        required: true,
+        select: false, // Important: Prevents the password hash from being returned by default find queries
+    },
+    repoList: [
+        {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Repository', // Tells Mongoose which model to look up
-            default:[]
-    }]
-}, 
-{
-    timestamps: true // to add 'createdAt' and 'updatedAt' fields
+            ref: 'Repository', // Assuming your Repository model is named 'Repository'
+        },
+    ],
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
 });
 
-const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
-export default User;
-
-
+// 3. Export the Mongoose Model
+export default mongoose.model<IUser>('User', UserSchema);
