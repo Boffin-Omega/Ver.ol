@@ -22,7 +22,7 @@ import Navbar02 from "./components/Navbar02";
 
 //shud check up on this interface
 interface repo{
-    id:string
+    _id:string,
     name:string,
     owner:string,
     commits: string[],
@@ -66,8 +66,8 @@ export default function App(){
                                         <CommandGroup heading="Your repositories">
                                             {repos.length ?
                                                 repos.map((repo:repo) => (
-                                                <CommandItem key={`C-${repo.id}`} id={repo.id}>
-                                                    <Link to={`/app/repoview/${repo.id}`} key={repo.id}>{repo.name}</Link>
+                                                <CommandItem key={`C-${repo._id}`} id={repo._id}>
+                                                    <Link to={`/app/repoview/${repo._id}`} key={repo._id}>{repo.name}</Link>
                                                 </CommandItem>
                                             ))
                                             :<div>No repositories</div>

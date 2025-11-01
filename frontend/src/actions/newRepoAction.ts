@@ -8,7 +8,7 @@ export async function newRepoAction({ request }: ActionFunctionArgs){
     const formData = await request.formData();
     console.log(formData);
     try{
-        const res = await authFetch(`${BASE_URL}/app/repo/upload`,{
+        const res = await authFetch(`${BASE_URL}/app/repo/api/upload`,{
             method:'POST',
             body: formData,
         });

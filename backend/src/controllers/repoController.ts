@@ -16,6 +16,7 @@ import Repository from '../models/repository.js'
 import Commit from '../models/commit.js'
 import Node from '../models/node.js'
 import User from '../models/user.js'
+import type {AuthenticatedRequest} from '../models/user.js'
 
 // Replace this with the actual authenticated user ID later 
 // const AUTHOR_ID = new Types.ObjectId('60d5ec49c69d7b0015b8d28e');
@@ -25,32 +26,47 @@ export interface PushRequest extends Request {
     file: Express.Multer.File & {buffer: Buffer; };
 }
 
-export const uploadController = async (req: Request, res: Response): Promise<void> =>{
-    let repoName: string;
-    let commitMessage: string | 'No message provided';
-    let userId: string;
+// --- Controller ---
+
+// Update the return type to allow returning a Response object for early exits
+export const uploadController = async (req: Request, res: Response): Promise<void> => {
+    // 1. Resolve Casting Error: Use intermediate 'unknown' cast
+    const authReq = req as unknown as AuthenticatedRequest;
+    
+    // 2. Extract the SECURELY verified user ID from the request object
+    const userId = authReq.user?.id; 
+    
+    // Check for userId and handle the response correctly (Fixes return type error by ensuring it's not a return)
+    if (!userId) {
+        // We use return here to stop execution immediately, sending the response.
+        res.status(401).json({ msg: "User ID not found in session." });
+        return;
+    }
+    
+    let repoName: string = ''; // Initialize required variables
+    let commitMessage: string | 'No message provided' = 'No message provided';
     let repoId :Types.ObjectId = new Types.ObjectId();
     let commitId :Types.ObjectId = new Types.ObjectId();
     let commits :Types.ObjectId[] = [];
 
     const fileProcessingPromises:Promise<void>[] = []; // To track async unzipping work
+    // Note: The Busboy import and usage depends on how you handle file uploads; 
+    // ensure busboy is correctly initialized and imported.
     const bb = busboy({headers: req.headers});
 
 
     bb.on('field', (key, value) => {
         if(key === 'repoName') {
             if (!value) {
+                // Return here will exit the busboy listener, not the whole controller
                 res.status(400).json({ error: 'Repository name is required' });
                 bb.removeAllListeners(); // stop processing further fields/files
                 return;
-            }            
+            }
             repoName = value;
         }
         else if(key === 'commitMessage') {
             commitMessage = value;
-        }
-        else if (key === 'userId'){
-            userId = value;
         }
     });
 
@@ -65,19 +81,14 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
 
         console.log(`\nStarting to process Zip: ${filename}`);
 
-        // 2. Pipe the incoming zip file stream to unzipper.Parse()
         const unzipperStream = fileStream.pipe(unzipper.Parse());
 
-        // 3. Create a promise to manage the asynchronous file reading
         const zipPromise:Promise<void> = new Promise((resolve, reject) => {
             
-            // unzipper emits an 'entry' event for each file found inside the zip
             unzipperStream.on('entry', async (entry) => {
-                let newNode:INode; //create node for every file/folder
-                let nodeType:string;
                 let nodeName:string;
                 console.log('reading entry',entry.path)
-                // Skip directories
+                
                 if (entry.type !== 'File') {
                     entry.autodrain(); 
                     return;
@@ -86,20 +97,20 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
                 console.log(`Reading file inside zip: ${nodeName}`);
 
                 try {
+                    // This section assumes Node, Commit, Repository, User, and storageService 
+                    // are imported and available in your scope.
                     // 4. Read the content of the single file
-                    //store it in gridfs
-                    const fileBuffer = await entry.buffer(); //potential choke here
-                    // **********************************************
+                    const fileBuffer = await entry.buffer(); 
+                    
                     // 5. PROCESS YOUR SINGLE FILE CONTENT HERE
-                    // The contentBuffer holds the data for ONE file.
-                    // **********************************************
-                    let parentNodeId:Types.ObjectId | null = await ensureFolders(repoId,commitId,entry.path);
+                    let parentNodeId:Types.ObjectId | null = await ensureFolders(repoId, commitId, entry.path);
 
-                    let gridFSFileId: Types.ObjectId | null = null; //use it in nodes collection
-                    try{
+                    let gridFSFileId: Types.ObjectId | null = null; 
+                    try {
+                        // Assuming storageService and ensureFolders are available utilities
                         gridFSFileId = await storageService.uploadFileToGridFS(fileBuffer, repoName, commitMessage);
                         console.log(`Successfully read ${nodeName}. Size: ${fileBuffer.length} bytes`);
-                        //store into db
+                        
                         await Node.create({
                             repoId:repoId,
                             commitId:commitId,
@@ -110,15 +121,17 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
                         })
                         console.log(gridFSFileId)
 
+                    } catch(err) {
+                        console.error(`Error occurred during database operation: ${err}`);
+                        // Since this is in an async listener, we reject the promise to handle the error in the main chain
+                        reject(err); 
+                        // It's vital to stop processing the entry stream here if possible
+                        entry.autodrain();
                     }
-                    catch(err){
-                        console.error(`Error occured! ${err}`);
-                        res.status(500).send('Server error D:')
-                    }
-                                    
                 } catch (error) {
                     console.error(`Error reading entry ${nodeName}:`, error);
-                    // Force the stream to finish processing this entry and move on
+                    // Pass the error up the promise chain
+                    reject(error);
                     entry.autodrain(); 
                 }
             });
@@ -135,13 +148,14 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
     bb.on('close', async () => {
         try {
             // Wait for Busboy to finish AND all file processing promises to resolve
-            //then create commit, finally create repo
             await Promise.all(fileProcessingPromises);
+            
+            // Assuming Commit, Repository, User models are available
             const newCommit = await Commit.create({
-                id:commitId,
+                _id:commitId, // Use _id instead of id for Mongoose creation
                 repoId:repoId,
                 message:commitMessage,
-                author:userId,
+                author:userId, // SECURELY VERIFIED USER ID
                 parentCommitId:null,
             })
             commits.push(commitId)
@@ -149,15 +163,15 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
             const newRepo = await Repository.create({
                 _id:repoId,
                 name:repoName,
-                owner:userId,
+                owner:userId, // SECURELY VERIFIED USER ID
                 commits:commits
             })
 
             //update user
             await User.findByIdAndUpdate(userId,
                 {$push: {repoList:repoId}}
-                
             )
+            
             if (!res.headersSent) {
                 console.log('\nAll files processed successfully.');
                 res.status(200).json({ 
@@ -177,7 +191,6 @@ export const uploadController = async (req: Request, res: Response): Promise<voi
 
     // 6. Pipe the incoming request stream to Busboy to start parsing
     req.pipe(bb);
-
 }
 
 
@@ -236,8 +249,18 @@ async function ensureFolders(repoId: Types.ObjectId, commitId: Types.ObjectId, e
 }
 
 export const getReposController = async (req: Request, res: Response): Promise<Response> => {
+    const authReq = req as unknown as AuthenticatedRequest;
+    
+    // 2. Extract the SECURELY verified user ID from the request object
+    const userId = authReq.user?.id; 
+    
+    // Check for userId and handle the response correctly (Fixes return type error by ensuring it's not a return)
+    if (!userId) {
+        // We use return here to stop execution immediately, sending the response.
+        return res.status(401).json({ msg: "User ID not found in session." });
+    }
     try {
-        const currentUser = await User.findById(req.params.userId)
+        const currentUser = await User.findById(userId)
             .populate('repoList'); // This returns full IRepository objects
 
         if (!currentUser) {
@@ -258,12 +281,18 @@ export const getReposController = async (req: Request, res: Response): Promise<R
 };
 
 export const repoViewController = async(req:Request, res:Response):Promise<Response>=>{
-    const userId = req.params.userId;
+    const authReq = req as unknown as AuthenticatedRequest;
+    
+    // 2. Extract the SECURELY verified user ID from the request object
+    const userId = authReq.user?.id; 
+    
+    // Check for userId and handle the response correctly (Fixes return type error by ensuring it's not a return)
+    if (!userId) {
+        // We use return here to stop execution immediately, sending the response.
+        return res.status(401).json({ msg: "User ID not found in session." });
+    }
     const requestedRepoId = req.params.repoId;
 
-    if(!userId){
-        return res.status(400).json("No userId provided!")
-    }
     if(!requestedRepoId){
         return res.status(400).json("No repoId provided!")
     }
@@ -298,7 +327,16 @@ export const repoViewController = async(req:Request, res:Response):Promise<Respo
 }
 //could merge above and this in future, for now lets keep these 2 seperate
 export const getNodesController = async(req:Request,res:Response):Promise<Response>=>{
-    const userId = req.params.userId;
+    const authReq = req as unknown as AuthenticatedRequest;
+    
+    // 2. Extract the SECURELY verified user ID from the request object
+    const userId = authReq.user?.id; 
+    
+    // Check for userId and handle the response correctly (Fixes return type error by ensuring it's not a return)
+    if (!userId) {
+        // We use return here to stop execution immediately, sending the response.
+        return res.status(401).json({ msg: "User ID not found in session." });
+    }
     const requestedCommitId = req.params.commitId;
     const requestedNodeId = req.params.nodeId;
 

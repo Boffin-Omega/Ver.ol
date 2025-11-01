@@ -6,7 +6,9 @@ export interface IUser extends Document {
     password: string; // Stored as a hash
     repoList: Types.ObjectId[]; // Array of ObjectIds referencing the Repository collection
 }
-
+export interface AuthenticatedRequest extends Request {
+    user: IUser; // Passport attaches the user object here
+}
 // 2. Define the Mongoose Schema
 const UserSchema: Schema = new Schema({
     username: {

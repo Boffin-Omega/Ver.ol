@@ -19,13 +19,14 @@ export async function reposLoader():Promise<repo[]> {
     }
     try{
         console.log(userId)
-        const res = await authFetch(`${BASE_URL}/app/repo/api/${userId}/repos`,{ 
+        const res = await authFetch(`${BASE_URL}/app/repo/api/repos`,{ 
             method: 'GET' 
         })
         if(!res.ok){
             throw new Error(`HTTP error! status: ${res.status}`);
         }
         const repos = await res.json();
+        console.log(repos)
         return repos;
     }
     catch(error){
