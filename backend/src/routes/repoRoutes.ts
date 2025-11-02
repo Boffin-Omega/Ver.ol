@@ -16,7 +16,6 @@ either theres post request when user wants to
 upload zip,or get request when user clicks on repo
 and content of that repo is displayed
  */
-//in future when auth is implemented,userId should NOT be in the url, this is only for testing
 repoRouter.post("/api/upload", uploadController);
 repoRouter.get("/api/repos",getReposController);
 repoRouter.get("/api/:repoId",repoViewController);

@@ -67,7 +67,7 @@ export default function App(){
                                             {repos.length ?
                                                 repos.map((repo:repo) => (
                                                 <CommandItem key={`C-${repo._id}`} id={repo._id}>
-                                                    <Link to={`/app/repoview/${repo._id}`} key={repo._id}>{repo.name}</Link>
+                                                    <Link to={`/app/repoview/${repo._id}/${repo.name}`} key={repo._id}>{repo.name}</Link>
                                                 </CommandItem>
                                             ))
                                             :<div>No repositories</div>

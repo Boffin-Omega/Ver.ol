@@ -63,7 +63,8 @@ export const logIn = async (req: Request, res: Response, next: NextFunction): Pr
                 // If authentication succeeded, create the JWT
                 const payload = { 
                     user: { 
-                            id: (user as IUser).id 
+                            id: (user as IUser).id,
+                            userName:(user as IUser).username
                     } 
                 };
 

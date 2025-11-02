@@ -29,7 +29,7 @@ export async function loginAction({ request }: ActionFunctionArgs){
 
         const data = await response.json();
         console.log(data)
-        useAuthStore.getState().login(data.token,data.user.id);
+        useAuthStore.getState().login(data.token,data.user.id,data.user.userName);
         useAuthStore.setState({loginState:'success', statusMessage:'Successfully logged in. Happy contributing!...'})
 
         console.log('Successfully logged in. Happy contributing!...');

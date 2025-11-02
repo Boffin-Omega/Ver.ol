@@ -1,0 +1,69 @@
+import { useState } from "react";
+import { ChevronRight, ChevronDown, Folder as FolderIcon } from "lucide-react";
+import { useRepoStore } from "../store/repoStore";
+import File from "./File";
+import {authFetch} from '../utils/authFetch'
+
+import type {UINode} from '../types'
+function findNode(nodes:UINode[], id:string):UINode|null {
+  for (const node of nodes) {
+    if (node._id === id) return node;
+    if (node.children) {
+      const found:UINode|null = findNode(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+const BASE_URL = import.meta.env.VITE_BASE_URL
+export default function Folder({ nodeId, level }:{nodeId:string,level:number}) {
+  const [loading, setLoading] = useState(false);
+  const node = useRepoStore((state) => findNode(state.nodes, nodeId));
+  const { appendChildren, toggleExpand } = useRepoStore();
+  if (!node) return null; // safety guard
+
+  console.log(`${node.name} is expanded: ${node.isExpanded}`)
+  const handleClick = async () => {
+    if (!node.isExpanded && (!node.children || node.children.length === 0)) {
+      // lazy load children
+      setLoading(true);
+      const res = await authFetch(`${BASE_URL}/app/repo/api/${node.commitId}/${node._id}`);
+      const children = await res.json();
+      console.log(`Children of ${node.name}`,children)
+      appendChildren(node._id, children);
+      setLoading(false);
+    }
+    toggleExpand(node._id);
+  };
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 rounded px-1"
+        style={{ paddingLeft: level * 12 }}
+        onClick={handleClick}
+        id={node._id}
+      >
+        {node.isExpanded ? (
+          <ChevronDown size={14} />
+        ) : (
+          <ChevronRight size={14} />
+        )}
+        <FolderIcon size={14} className="text-yellow-600" />
+        <span>{node.name}</span>
+      </div>
+
+      {loading && <div style={{ paddingLeft: (level + 1) * 12 }}>Loading...</div>}
+
+      {node.isExpanded &&
+        node.children?.map((child) =>
+          child.type === "folder" ? (
+            <Folder key={child._id} nodeId={child._id} level={level + 1} />
+          ) : (
+            <File key={child._id} node={child} level={level + 1} />
+          )
+        )}
+    </div>
+  );
+}

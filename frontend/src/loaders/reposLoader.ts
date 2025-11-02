@@ -30,7 +30,7 @@ export async function reposLoader():Promise<repo[]> {
         return repos;
     }
     catch(error){
-        console.error('Some error happened ',error);
+        console.error('Some error happened in the loader!',error);
         throw error;
     }
 

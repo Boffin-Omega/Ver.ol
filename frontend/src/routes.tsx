@@ -15,7 +15,7 @@ import PrivateRoute from './PrivateRoutes.tsx'
 import {useAuthStore} from './store/authStore.ts'
 
 import {reposLoader} from './loaders/reposLoader.ts'
-
+import {repoNodesLoader} from './loaders/nodeLoader.ts'
 const routes:RouteObject[] = [
     {
         path: "/",
@@ -56,8 +56,9 @@ const routes:RouteObject[] = [
                 action: newRepoAction,
             },
             {
-                path: "repoview/:repoId",
+                path: "repoview/:repoId/:repoName",
                 element: <RepoView />,
+                loader: repoNodesLoader,
                 errorElement: <ErrorPage />,
             }
         ]
