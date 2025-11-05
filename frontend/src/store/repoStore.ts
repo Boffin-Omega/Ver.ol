@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import type {UINode, Change} from '../types'
 
-
-
 interface RepoState {
   repoId: string;
   repoName: string;
@@ -15,7 +13,6 @@ interface RepoState {
   setRepoInfo: (id: string, name: string) => void;
   setNodes: (nodes: UINode[]) => void;
   setMode: (mode: "viewing" | "staging") => void;
-  moveNode: (childNode: string, parentNode: string) => string;
   appendChildren: (parentId: string, children: UINode[]) => void;
   toggleExpand: (nodeId: string) => void;
   clearStore: () => void;
@@ -43,10 +40,6 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
   },
 
-  moveNode: (childNode, parentNode) => {
-    // You can implement move logic here later
-    return `Moved ${childNode} to ${parentNode}`;
-  },
 
   appendChildren: (parentId, children) =>
     set((state) => {
@@ -55,7 +48,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           if (n._id === parentId) {
             return {
               ...n,
-              children: [...(n.children || []), ...children],
+              children, // replace instead of append
             };
           }
           if (n.children) {
@@ -68,7 +61,8 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         state.mode === "staging" ? "stagedNodes" : "nodes";
 
       return { [targetKey]: attachChildren(state[targetKey]) } as Partial<RepoState>;
-    }),
+  }),
+
 
   toggleExpand: (nodeId) =>
     set((state) => {
@@ -89,5 +83,5 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       return { [targetKey]: toggle(state[targetKey]) } as Partial<RepoState>;
     }),
 
-  clearStore: () => set({ nodes: [], stagedNodes: [] }),
+  clearStore: () => set({ nodes: [], stagedNodes: [],mode:'viewing',stagedChanges: [] }),
 }));

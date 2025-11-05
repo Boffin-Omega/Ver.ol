@@ -3,7 +3,7 @@ import { useAuthStore } from "../store/authStore";
 import { useTerminalStore } from "../store/terminalStore";
 
 export default function Terminal() {
-  const userName = useAuthStore((s) => s.userName);
+  const userName = useAuthStore.getState().userName|| useAuthStore.getInitialState().userName;
   const pwd = useTerminalStore((s) => s.pwd);
   const awaitingDiscardConfirm = useTerminalStore((s) => s.awaitingDiscardConfirm);
 

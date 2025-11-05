@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // 2. Persist to localStorage
         localStorage.setItem('jwtToken', token);
         localStorage.setItem('userId', userId); // <-- NEW: Persist the ID
-        localStorage.setItem('userId', userName); // <-- NEW: Persist the ID
+        localStorage.setItem('userName', userName); // <-- NEW: Persist the ID
 
         console.log(`User ${userName}:${userId} logged in.`);
     },

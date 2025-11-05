@@ -4,25 +4,15 @@ import { useRepoStore } from "../store/repoStore";
 import File from "./File";
 import { appendChildrenNodes } from "../utils/helper";
 
-import type { UINode } from "../types";
+import {findNode} from '../utils/helper'
 
-function findNode(nodes: UINode[] = [], id: string): UINode | null {
-  for (const node of nodes) {
-    if (node._id === id) return node;
-    if (node.children) {
-      const found = findNode(node.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
-}
 
 export default function Folder({ nodeId, level }: { nodeId: string; level: number }) {
   const [loading, setLoading] = useState(false);
 
   // Selector #1: read the node instance by traversing the tree (pure)
-  const node = useRepoStore((s) => findNode(s.nodes, nodeId));
-
+  const mode = useRepoStore((s) => s.mode);
+  const node = findNode(nodeId, mode);
   // Selector #2: read the toggleExpand function (stable function reference)
   const toggleExpand = useRepoStore((s) => s.toggleExpand);
 
