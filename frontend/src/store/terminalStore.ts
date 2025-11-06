@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useRepoStore } from "./repoStore";
 import { useAuthStore } from "./authStore";
-import {listAll,cwd,renameHelper} from '../utils/helper'
+import {listAll,cwd,renameHelper, move, delHelper} from '../utils/helper'
 
 interface TerminalState {
   repoName: string;
@@ -94,15 +94,21 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
       return "Invalid mode value: must be 'staging' or 'viewing'";
     },
-    mv: (childNode: string, newParentNode: string) => {
-      useRepoStore.getState().moveNode(childNode, newParentNode);
-      return "";
+    mv: async (args:string) => {
+      const [src, dest] = args.trim().split(' ');
+      console.log('Attempt to move ',src,' to ',dest);
+      const output = await move(src,dest);
+      return output;
     },
     rename:(args:string)=>{ //allows rename of nodes only in staging mode and nodes in present working directory
       const [oldName, newName] = args.trim().split(' ');
       console.log(oldName,newName)
       const output = renameHelper(oldName,newName)
       return output;
+    },
+    del:(arg:string)=>{
+      const nodeName = arg.trim();
+      return delHelper(nodeName);
     },
     y: () => {
       const { awaitingDiscardConfirm } = get();

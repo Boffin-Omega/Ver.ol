@@ -12,17 +12,19 @@ export type Change =
   | {
       type: "rename";
       nodeId: string;
-      payload: { newName: string };
+      payload: { oldName:string,newName: string };
     }
   | {
       type: "move";
       nodeId: string;
-      payload: { newParentId: string };
+      payload: { src:string, dest:string, newParentId: string };
     }
   | {
       type: "delete";
       nodeId: string;
-      payload?: undefined;
+      payload: {
+        deletedNodeName:string
+      };
     };
 export type UINode = node & { isExpanded?: boolean; children?: UINode[] };
 

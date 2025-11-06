@@ -2,27 +2,26 @@ import { useState } from "react";
 import { ChevronRight, ChevronDown, Folder as FolderIcon } from "lucide-react";
 import { useRepoStore } from "../store/repoStore";
 import File from "./File";
-import { appendChildrenNodes } from "../utils/helper";
-
-import {findNode} from '../utils/helper'
-
+import { appendChildrenNodes, findNode } from "../utils/helper";
 
 export default function Folder({ nodeId, level }: { nodeId: string; level: number }) {
   const [loading, setLoading] = useState(false);
-
-  // Selector #1: read the node instance by traversing the tree (pure)
+  
+  // Subscribe to both mode and the nodes
   const mode = useRepoStore((s) => s.mode);
-  const node = findNode(nodeId, mode);
-  // Selector #2: read the toggleExpand function (stable function reference)
   const toggleExpand = useRepoStore((s) => s.toggleExpand);
-
+  
+  // Find node from subscribed data
+  const node = findNode(nodeId, mode);
+  
+  // Add logging
+  console.log(`Folder ${nodeId} rendering, mode: ${mode}, node:`, node?.name, 'children:', node?.children?.map(c => c.name));
+  
   if (!node) return null;
 
   const handleClick = async () => {
-    // avoid state changes during render — this is an event handler so it's safe
     if (!node.isExpanded && (!node.children || node.children.length === 0)) {
       setLoading(true);
-      // make appendChildrenNodes an async function that updates the store.
       await appendChildrenNodes(node);
       setLoading(false);
     }
@@ -41,9 +40,7 @@ export default function Folder({ nodeId, level }: { nodeId: string; level: numbe
         <FolderIcon size={14} className="text-yellow-600" />
         <span>{node.name}</span>
       </div>
-
       {loading && <div style={{ paddingLeft: (level + 1) * 12 }}>Loading...</div>}
-
       {node.isExpanded &&
         node.children?.map((child) =>
           child.type === "folder" ? (

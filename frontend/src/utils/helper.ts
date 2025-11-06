@@ -22,10 +22,11 @@ function findNodeHelper(nodes:UINode[],id: string): UINode | null {
   }
   return null;
 }
+
 export async function appendChildrenNodes(node: UINode) {
   const { appendChildren } = useRepoStore.getState();
 
-  // Don’t refetch if already populated
+  // Don't refetch if already populated
   if (node.children && node.children.length > 0) return;
 
   const res = await authFetch(`${BASE_URL}/app/repo/api/${node.commitId}/${node._id}`);
@@ -35,50 +36,48 @@ export async function appendChildrenNodes(node: UINode) {
   appendChildren(node._id, children);
 }
 
-
 export function findcwdNode(pwd: string): UINode | null {
   const { mode, nodes, stagedNodes} = useRepoStore.getState();
 
+  console.log('stagedNodes inside findcwdNode function',stagedNodes);
   // compute visible nodes reactively
   const visibleNodes = mode === "staging" ? stagedNodes : nodes;
-  console.log('visibleNodes', visibleNodes)
 
+  console.log('visibleNodes inside findcwdNodes',visibleNodes,' mode',mode)
   // handle root
   const pathParts = pwd.split('/').filter(Boolean);
-  console.log(pathParts)
   if(pathParts.length === 0) return null;
-  // split and remove empty parts (caused by leading "/")
 
   // start at root folder
   let cwdNode = visibleNodes.find((n:UINode)=>n.type==='folder' && n.parentNodeId===null);
-  if (!cwdNode) return null;//should never happen
+  if (!cwdNode) return null;
 
   // walk down the path
   for (let i = 1; i < pathParts.length; i++) {
-    cwdNode =
-      cwdNode.children?.find(
-        n => n.type === 'folder' && n.name === pathParts[i]
-      );
-
+    cwdNode = cwdNode.children?.find(
+      n => n.type === 'folder' && n.name === pathParts[i]
+    );
     if (!cwdNode) return null;
   }
 
   return cwdNode;
 }
+
 export function listAll(pwd:string){
     const cwdNode = findcwdNode(pwd);
     if (!cwdNode) return 'Invalid pwd path';
     if (!cwdNode.children || cwdNode.children.length === 0) return '(empty folder)';
 
+    console.log('cwdNode in list all', cwdNode)
     return cwdNode.children
         .map(child => child.type==='folder' ? child.name.concat('/'):child.name)
         .join('\n');
 }
+
 export async function cwd(pwd: string, directory: string){
     if(directory === '..'){
       const pathParts =  pwd.split('/').filter(Boolean);
       const parentPath = pathParts.slice(0,-1).join('/');
-      console.log('switched back to',parentPath);
       useTerminalStore.setState({pwd:parentPath});
       return `Switched back to ${parentPath}`
     }
@@ -91,24 +90,28 @@ export async function cwd(pwd: string, directory: string){
     useTerminalStore.setState({pwd:`${pwd}/${dir.name}`});
     //load dir's children too, only if it doesnt exist
 
-    if(!dir.children) await appendChildrenNodes(dir);
+    if(!dir.children){
+      console.log(dir);
+      console.log(`${dir.name} has no children!`)
+      await appendChildrenNodes(dir)
+    };
 
     return `Changed directory to ${dir.name}`
-
 }
-  // Helper to recursively update the tree
-function renameInTree(nodes: UINode[],oldNode:UINode,newName:string): UINode[] {
+
+// Helper to recursively update the tree for rename
+function renameInTree(nodes: UINode[], oldNode: UINode, newName: string): UINode[] {
     return nodes.map(n => {
       if (n._id === oldNode._id) {
-        console.log("Renaming:", n.name, "->", newName, "children:", n.children);
         return { ...n, name: newName };
       }
       if (n.children) {
-        return { ...n, children: renameInTree(n.children,oldNode,newName) };
+        return { ...n, children: renameInTree(n.children, oldNode, newName) };
       }
       return n;
     });
-  }
+}
+
 export function renameHelper(oldName: string, newName: string) {
   const mode = useRepoStore.getState().mode;
   if (mode !== "staging") return "Please switch to staging mode!";
@@ -118,28 +121,168 @@ export function renameHelper(oldName: string, newName: string) {
   const currWorkingDir = findcwdNode(pwd);
   if (!currWorkingDir) return "Error retrieving current working directory!";
 
-  // Ensure no duplicate
   if (currWorkingDir.children?.some(child => child.name === newName))
     return `${newName} already exists!`;
 
   const oldNode = currWorkingDir.children?.find(child => child.name === oldName);
   if (!oldNode) return `${oldName} not found!`;
 
-  // Deep clone stagedNodes to safely mutate
   const stagedNodes = structuredClone(useRepoStore.getState().stagedNodes);
-
-  const updatedNodes = renameInTree(stagedNodes,oldNode,newName);
+  const updatedNodes = renameInTree(stagedNodes, oldNode, newName);
 
   useRepoStore.setState({ stagedNodes: updatedNodes });
 
-  // Record change
   const stagedChanges = useRepoStore.getState().stagedChanges;
   const change: Change = {
     type: "rename",
     nodeId: oldNode._id,
-    payload: { newName },
+    payload: { oldName,newName },
   };
   useRepoStore.setState({ stagedChanges: [...stagedChanges, change] });
-  console.log(useRepoStore.getState().stagedChanges);
+
   return `${oldName} renamed to ${newName}`;
+}
+
+// Helper to recursively move a node in the tree
+function moveInTree(
+  nodes: UINode[],
+  srcNode: UINode,
+  oldParentId: string,
+  newParentId: string
+): UINode[] {
+  return nodes.map(node => {
+    // Remove src from old parent's children
+    if(node._id === srcNode._id){
+      return {
+        ...node,parentNodeId:newParentId
+      }
+    }
+    if (node._id === oldParentId) {
+      return {
+        ...node,
+        children: moveInTree(node.children!.filter(c => c._id !== srcNode._id), srcNode, oldParentId, newParentId),
+      };
+    }
+
+    // Add src to new parent's children with updated parentNodeId
+    if (node._id === newParentId) {
+      const movedNode: UINode = { 
+        ...srcNode, 
+        parentNodeId: newParentId 
+      };
+      return {
+        ...node,
+        children: [...(node.children || []), movedNode],
+      };
+    }
+
+    // Recursively process children
+    if (node.children && node.children.length > 0) {
+      return { 
+        ...node, 
+        children: moveInTree(node.children, srcNode, oldParentId, newParentId) 
+      };
+    }
+
+    return node;
+  });
+}
+
+export async function move(src: string, dest: string) {
+  const mode = useRepoStore.getState().mode;
+  if (mode !== "staging") return "Please switch to staging mode!";
+  if (!src || !dest) return "Invalid input";
+
+  const pwd = useTerminalStore.getState().pwd;
+  const currWorkingDir = findcwdNode(pwd);
+  if (!currWorkingDir) return "Error retrieving current working directory!";
+
+  const srcNode = currWorkingDir.children?.find(n => n.name === src);
+  if (!srcNode) return `${src} not found in current directory!`;
+
+  const destNode = currWorkingDir.children?.find(
+    n => n.type === "folder" && n.name === dest
+  );
+  if (!destNode) return `${dest} not found or is not a folder in current directory!`;
+
+  if (srcNode._id === destNode._id) {
+    return "Cannot move a folder into itself!";
+  }
+
+  if (destNode.children?.some(child => child.name === srcNode.name)) {
+    return `${srcNode.name} already exists in ${dest}!`;
+  }
+
+  if(!destNode.children || destNode.children.length == 0) await appendChildrenNodes(destNode)
+  const stagedNodes = structuredClone(useRepoStore.getState().stagedNodes);
+  console.log('staged nodes inside move',stagedNodes)
+  const finalNodes = moveInTree(stagedNodes, srcNode, currWorkingDir._id, destNode._id);
+
+  useRepoStore.setState({ stagedNodes: finalNodes });
+  console.log('finalNodes after moving',finalNodes);
+  const stagedChanges = useRepoStore.getState().stagedChanges;
+  const change: Change = {
+    type: "move",
+    nodeId: srcNode._id,
+    payload: { src:srcNode.name,dest:destNode.name,newParentId: destNode._id },
+  };
+  useRepoStore.setState({ stagedChanges: [...stagedChanges, change] });
+
+  return `Moved ${src} to ${dest}/`;
+}
+function deleteInTree(nodes: UINode[], nodeId: string, parentId: string): UINode[] {
+  return nodes
+    .filter(node => node._id !== nodeId) // Remove the node itself if found at this level
+    .map(node => {
+      // Remove from parent's children
+      if (node._id === parentId) {
+        return {
+          ...node,
+          children: node.children?.filter(c => c._id !== nodeId),
+        };
+      }
+
+      // Recursively process children
+      if (node.children && node.children.length > 0) {
+        return {
+          ...node,
+          children: deleteInTree(node.children, nodeId, parentId),
+        };
+      }
+
+      return node;
+    });
+}
+export function delHelper(nodeName: string) {
+  const mode = useRepoStore.getState().mode;
+  if (mode !== "staging") return "Please switch to staging mode!";
+  if (!nodeName) return 'Invalid arguments';
+
+  const pwd = useTerminalStore.getState().pwd;
+  const currWorkingDir = findcwdNode(pwd);
+  if (!currWorkingDir) return 'Invalid pwd path';
+
+  const toBeDeletedNode = currWorkingDir.children?.find(node => node.name === nodeName);
+  if (!toBeDeletedNode) return `${nodeName} not found!`;
+
+  // Deep clone to avoid mutations
+  const stagedNodes = structuredClone(useRepoStore.getState().stagedNodes);
+
+  // Use recursive helper
+  const updatedNodes = deleteInTree(stagedNodes, toBeDeletedNode._id, currWorkingDir._id);
+
+  useRepoStore.setState({ stagedNodes: updatedNodes });
+
+  console.log('After deleting', useRepoStore.getState().stagedNodes);
+
+  const stagedChanges = useRepoStore.getState().stagedChanges;
+  const change: Change = {
+    type: "delete",
+    nodeId: toBeDeletedNode._id,
+    payload:{deletedNodeName: toBeDeletedNode.name}
+  };
+  useRepoStore.setState({ stagedChanges: [...stagedChanges, change] });
+
+  console.log(useRepoStore.getState().stagedChanges);
+  return `Deleted ${nodeName}`;
 }
