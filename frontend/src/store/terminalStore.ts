@@ -101,8 +101,6 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
       if (modeVal === "viewing") {
         // enter confirmation mode
-        useRepoStore.getState().setMode(modeVal);
-
         set({ awaitingDiscardConfirm: true });
         return "Discard currently staged changes? (y/n)";
       }
@@ -132,6 +130,8 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       if (!awaitingDiscardConfirm) return "command not found";
 
       set({ awaitingDiscardConfirm: false });
+      useRepoStore.getState().setMode('viewing');
+
       useRepoStore.setState({ mode: "viewing" ,stagedChanges:[]}); //clear stagedChanges
       console.log('Staged changees after discarding',useRepoStore.getState().stagedChanges);
       return "Discarded changes, now in viewing mode";
