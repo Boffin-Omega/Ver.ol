@@ -1,4 +1,4 @@
-import { useLoaderData } from "react-router";
+import { useLoaderData ,Link} from "react-router";
 import type { Commit } from "./types";
 
 export default function CommitsView() {
@@ -22,6 +22,7 @@ export default function CommitsView() {
       <h1 className="text-3xl font-bold mb-6">Commit History</h1>
       <div className="space-y-8">
         {Object.entries(groupedCommits).map(([date, commitsForDate]) => (
+
           <div key={date}>
             <h2 className="text-xl font-semibold text-gray-700 mb-2">
               {new Date(date).toLocaleDateString(undefined, {
@@ -33,25 +34,30 @@ export default function CommitsView() {
             </h2>
             <div className="space-y-3 border-l-2 border-gray-300 pl-4">
               {commitsForDate.map((commit) => (
-                <div
-                  key={commit._id}
-                  className="flex flex-col bg-gray-50 hover:bg-gray-100 transition p-3 rounded-lg shadow-sm"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-gray-900">
-                      {commit.author?.username ?? "Unknown Author"}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(commit.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 text-sm mt-1">
-                    {commit.message || "(No message)"}
-                  </p>
-                </div>
+                <Link to={`/app/commit/${commit.repoId}/${commit._id}`}>
+                    <div
+                    key={commit._id}
+                    className="flex flex-col bg-gray-50 hover:bg-gray-100 transition p-3 rounded-lg shadow-sm"
+                    >
+                    <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">
+                        {commit.author?.username ?? "Unknown Author"}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                        {new Date(commit.timestamp).toLocaleTimeString()}
+                        </span>
+                    </div>
+                    <p className="text-gray-700 text-sm mt-1">
+                        {commit.message || "(No message)"}
+                    </p>
+                    </div>
+                </Link>
+
               ))}
             </div>
           </div>
+
+
         ))}
       </div>
     </div>

@@ -6,6 +6,7 @@ import type { Change } from '../types.js';
 import Repository from '../models/repository.js'
 import User from '../models/user.js'
 import Commit from '../models/commit.js'
+import Node from '../models/node.js'
 
 import type {AuthenticatedRequest} from '../models/user.js'
 import { createCommit, applyChangesToNewCommit } from '../services/commitService.js';
@@ -122,4 +123,42 @@ export const commitController = async(req: Request, res: Response): Promise<Resp
         console.error("Error creating commit:", error);
         return res.status(500).json({ error: "Failed to create commit" });
     }
+}
+export const getCommitInfoController = async(req:Request,res:Response):Promise<Response>=>{
+    const authReq = req as unknown as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+    if(!userId) {
+        return res.status(401).json({msg: "User Id not found in session"});
+    }
+    const repoId = req.params.repoId;
+    if(!repoId) return res.status(401).json({msg:"Missing repoId!"});
+    const tempRepoId = repoId as unknown as Types.ObjectId;
+
+    const commitId = req.params.commitId;
+    if(!commitId) return res.status(401).json({msg:"Missing commitId!"})
+    const tempCommitId = commitId as unknown as Types.ObjectId;
+
+    //return json response with reponame, commit author, commit desc, commit author, and top level nodes of repo
+    const repo = await Repository.findById(tempRepoId);
+    if(!repo) return res.status(500).json({msg:" Requested repository not found!"});
+
+    const reqCommit = await Commit.findById(tempCommitId);
+    if(!reqCommit) return res.status(500).json({msg:" Requested commit not found!"})
+    reqCommit.populate('author');
+
+    const repoRoot = await Node.findOne({
+        commitId:tempCommitId,
+        parentNodeId:null
+    })
+    if(!repoRoot) return res.status(500).json({msg:"Repository root not found!"});
+    const nodes = await Node.find({
+        commitId:tempCommitId,
+        parentNodeId:repoRoot._id
+    })
+    return res.status(200).json({
+        repoRoot:repoRoot,
+        repoName:repoRoot.name,
+        commit:reqCommit,
+        nodes:nodes
+    })
 }

@@ -1,5 +1,7 @@
 import {authFetch} from '../utils/authFetch'
 import type {LoaderFunctionArgs} from 'react-router'
+import {useRepoStore} from '../store/repoStore'
+
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export async function commitsLoader({ params }: LoaderFunctionArgs){
@@ -18,4 +20,35 @@ export async function commitsLoader({ params }: LoaderFunctionArgs){
         throw error;
     }
 
+}
+export async function commitInfoLoader({params}:LoaderFunctionArgs){
+    const {repoId, commitId} = params;
+    if(!repoId) throw Error('Missing repoId');
+    if(!commitId) throw Error('Missing commitId');
+
+    try{
+        const res = await authFetch(`${BASE_URL}/app/repo/api/commitInfo/${repoId}/${commitId}`)
+        if(!res.ok){
+            const errorText = await res.text();
+            console.error('Error response:', errorText);
+            throw new Error(`HTTP error! status: ${res.status}, message: ${errorText}`);
+        }
+        const data = await res.json();
+        console.log('data from response', data)
+        const {repoRoot, repoName, commit, nodes} = data;
+        useRepoStore.getState().setNodes([...nodes,repoRoot])
+        useRepoStore.getState().appendChildren(repoRoot._id,nodes);
+        console.log('commit repoNodes in store',useRepoStore.getState().nodes)
+
+        return {
+            repoName,
+            commit,
+            nodes:useRepoStore.getState().nodes
+        }
+
+    }
+    catch(error){
+        console.error('Some error happened in the commitInfoLoader!',error);
+        throw error;
+    }
 }

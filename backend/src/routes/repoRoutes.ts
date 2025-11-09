@@ -8,7 +8,7 @@ import {
     getFileController,
 } from "../controllers/repoController.js"
 import {
-    getCommitHistoryController, commitController
+    getCommitHistoryController, commitController,getCommitInfoController
 } from "../controllers/commitController.js"
 
 export const repoRouter: express.Router = express()
@@ -30,5 +30,6 @@ repoRouter.post("/api/commit", commitController);
 repoRouter.get("/api/getCommits/:repoId", getCommitHistoryController);
 
 repoRouter.get("/api/getFile/:fileId", getFileController)
+repoRouter.get("/api/commitInfo/:repoId/:commitId",getCommitInfoController);
 repoRouter.get("/api/:commitId/:nodeId",getNodesController);
 repoRouter.get("/api/:repoId",repoViewController);
