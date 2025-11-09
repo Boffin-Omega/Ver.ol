@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { useRepoStore } from "./repoStore";
 import { useAuthStore } from "./authStore";
 import {listAll,cwd,renameHelper, move, delHelper} from '../utils/helper'
+import { createCommitAction } from "../actions/commitAction";
+import { authFetch } from "../utils/authFetch";
 
 interface TerminalState {
   repoName: string;
@@ -12,7 +14,7 @@ interface TerminalState {
 
   onInput?: (input: string) => string;
   setRepo: (repoName: string) => void;
-  getPwd:()=>string;
+  getPwd: ()=>string;
   setPwd:(pathName:string)=>void;
   defaultHandler:()=>string;
   commands: Record<string, (...args: string[]) => string | Promise<string>>;
@@ -38,22 +40,24 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       pwd: `/${repoName}`,
     });
   },
+
   getPwd:()=>{
     const {pwd} = get();
     return pwd || localStorage.getItem('pwd')!;
   },
+  
   setPwd:(pathName:string)=>{
     set({
       pwd:pathName
     })
     localStorage.setItem('pwd',pathName)
   },
+
   commands: {
     pwd: () => {
       const awaitDiscardConfirm = get().awaitingDiscardConfirm;
       if(awaitDiscardConfirm) return '';
-      const {getPwd} = get();
-      return getPwd();
+      return get().pwd
     },
 
     whoami: () => {
@@ -72,8 +76,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     ls: () => {
       const awaitDiscardConfirm = get().awaitingDiscardConfirm;
       if(awaitDiscardConfirm) return ''; //basically dont allow users to do stuff if waiting for confirmation
-      const {getPwd} = get();
-      const pwd = getPwd();
+      const { pwd } = get();
       const output = listAll(pwd);
       return output;
     },
@@ -81,8 +84,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     cd: async (directory: string) => {
       const awaitDiscardConfirm = get().awaitingDiscardConfirm;
       if(awaitDiscardConfirm) return '';
-      const {getPwd} = get();
-      const pwd = getPwd();
+      const { pwd } = get();
       const output = await cwd(pwd, directory);
       return output;
     },
@@ -101,6 +103,8 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
       if (modeVal === "viewing") {
         // enter confirmation mode
+        useRepoStore.getState().setMode(modeVal);
+
         set({ awaitingDiscardConfirm: true });
         return "Discard currently staged changes? (y/n)";
       }
@@ -130,8 +134,6 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       if (!awaitingDiscardConfirm) return "command not found";
 
       set({ awaitingDiscardConfirm: false });
-      useRepoStore.getState().setMode('viewing');
-
       useRepoStore.setState({ mode: "viewing" ,stagedChanges:[]}); //clear stagedChanges
       console.log('Staged changees after discarding',useRepoStore.getState().stagedChanges);
       return "Discarded changes, now in viewing mode";
@@ -144,10 +146,70 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       return "Cancelled, staying in staging mode";
     },
 
+    commit: async (message: string) => {
+      const awaitDiscardConfirm = get().awaitingDiscardConfirm;
+      if(awaitDiscardConfirm) return '';
 
+      const mode = useRepoStore.getState().mode;
+      if (mode !== "staging") {
+        return "Please switch to staging mode";
+      }
+
+      const { stagedChanges, repoId, commitId } = useRepoStore.getState();
+      
+      if (stagedChanges.length === 0) {
+        return "No changes to commit!";
+      }
+
+      if (!commitId) {
+        return "Error: No current commit ID found!";
+      }
+
+      if (!message) {
+        return "Please provide a commit message: commit \"your message\"";
+      }
+
+      try {
+        const result = await createCommitAction(commitId, stagedChanges, {
+          repoId,
+          message,
+        });
+
+        const newCommitId = result.commit._id;
+
+        // Fetch nodes for the new commit from backend (it's now the latest commit)
+        const BASE_URL = import.meta.env.VITE_BASE_URL;
+        const response = await authFetch(`${BASE_URL}/app/repo/api/${repoId}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to fetch nodes:', errorText);
+          throw new Error(`Failed to fetch nodes for new commit: ${response.status}`);
+        }
+        
+        const { repoRoot, repoNodes } = await response.json();
+
+        // Update the store with new commit data
+        useRepoStore.setState({ 
+          commitId: newCommitId,
+          stagedChanges: [],
+          mode: "viewing",
+          nodes: [...repoNodes, repoRoot],
+          stagedNodes: []
+        });
+        
+        // Update children for root node
+        useRepoStore.getState().appendChildren(repoRoot._id, repoNodes);
+
+        return `Commit created successfully: ${newCommitId}\n${message}`;
+      } catch (error) {
+        console.error("Commit failed:", error);
+        return `Commit failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+    },
 
     help: () =>
-      "Available commands: pwd, whoami, echo, ls, cd, mode, mv,rename,delete, help",
+      "Available commands: pwd, whoami, echo, ls, cd, mode, mv, rename, del, commit, help",
     
   },
 

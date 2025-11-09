@@ -4,6 +4,7 @@ import type {UINode, Change} from '../types'
 interface RepoState {
   repoId: string;
   repoName: string;
+  commitId: string;
   nodes: UINode[];
   stagedNodes: UINode[];
   stagedChanges: Change[];
@@ -11,6 +12,7 @@ interface RepoState {
 
   // actions
   setRepoInfo: (id: string, name: string) => void;
+  setCommitId: (commitId: string) => void;
   setNodes: (nodes: UINode[]) => void;
   setMode: (mode: "viewing" | "staging") => void;
   appendChildren: (parentId: string, children: UINode[]) => void;
@@ -21,12 +23,15 @@ interface RepoState {
 export const useRepoStore = create<RepoState>((set, get) => ({
   repoId: "",
   repoName: "",
+  commitId: "",
   nodes: [],
   stagedNodes: [],
   stagedChanges: [],
   mode: "viewing",
 
   setRepoInfo: (id, name) => set({ repoId: id, repoName: name }),
+  
+  setCommitId: (commitId) => set({ commitId }),
 
   setNodes: (nodes) => set({ nodes }),
 
@@ -83,5 +88,5 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       return { [targetKey]: toggle(state[targetKey]) } as Partial<RepoState>;
     }),
 
-  clearStore: () => set({ nodes: [], stagedNodes: [],mode:'viewing',stagedChanges: [] }),
+  clearStore: () => set({ nodes: [], stagedNodes: [],mode:'viewing',stagedChanges: [], commitId: "" }),
 }));
