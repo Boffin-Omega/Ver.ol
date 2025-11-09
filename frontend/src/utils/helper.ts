@@ -78,9 +78,7 @@ export async function cwd(pwd: string, directory: string){
     if(directory === '..'){
       const pathParts =  pwd.split('/').filter(Boolean);
       const parentPath = pathParts.slice(0,-1).join('/');
-      if(!parentPath) return 'Cannot move to parent of root directory!';
-      useTerminalStore.getState().setPwd(parentPath);
-
+      useTerminalStore.setState({pwd:parentPath});
       return `Switched back to ${parentPath}`
     }
     const cwdNode = findcwdNode(pwd);
@@ -89,7 +87,7 @@ export async function cwd(pwd: string, directory: string){
     //if dir exists, set pwd,load its children
     const dir = cwdNode.children?.find(child=>child.type==='folder' && child.name===directory);
     if(!dir) return `${directory} not found!`;
-    useTerminalStore.getState().setPwd(`${pwd}/${dir.name}`)
+    useTerminalStore.setState({pwd:`${pwd}/${dir.name}`});
     //load dir's children too, only if it doesnt exist
 
     if(!dir.children){
@@ -291,7 +289,6 @@ export function delHelper(nodeName: string) {
 
   const toBeDeletedNode = currWorkingDir.children?.find(node => node.name === nodeName);
   if (!toBeDeletedNode) return `${nodeName} not found!`;
-  if(toBeDeletedNode.parentNodeId === null) return 'Please use delete button to delete repository root!';
 
   // Deep clone to avoid mutations
   const stagedNodes = structuredClone(useRepoStore.getState().stagedNodes);
