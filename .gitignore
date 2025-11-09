@@ -25,3 +25,4 @@ dist-ssr
 *.sw?
 #only helper to get rid of all collections except user
 dropCollections.js 
+uploads

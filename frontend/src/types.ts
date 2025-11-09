@@ -8,6 +8,19 @@ interface node{
     gridFSFileId: string|null;
     timestamp: Date;
 }
+type author = {
+  _id:string,
+  username:string,
+  email:string,
+}
+export type Commit = {
+    _id: string;
+    repoId: string;
+    message: string;
+    author: author; // reference to the user who pushed the commit
+    parentCommitId: string|null;
+    timestamp: Date;
+}
 export type Change =
   | {
       type: "rename";

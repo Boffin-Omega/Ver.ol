@@ -4,9 +4,12 @@ import fs from "fs";
 
 import {
     uploadController, getReposController, repoViewController, 
-    getNodesController, getCommitHistoryController, commitController,
+    getNodesController,
     getFileController,
 } from "../controllers/repoController.js"
+import {
+    getCommitHistoryController, commitController
+} from "../controllers/commitController.js"
 
 export const repoRouter: express.Router = express()
 
@@ -23,8 +26,9 @@ and content of that repo is displayed
  */
 repoRouter.post("/api/upload", uploadController);
 repoRouter.get("/api/repos",getReposController);
-repoRouter.get("/api/getFile/:fileId", getFileController)
-repoRouter.get("/api/:repoId",repoViewController);
-repoRouter.get("/api/:commitId/:nodeId",getNodesController);
 repoRouter.post("/api/commit", commitController);
-repoRouter.post("/api/getCommits", getCommitHistoryController);
+repoRouter.get("/api/getCommits/:repoId", getCommitHistoryController);
+
+repoRouter.get("/api/getFile/:fileId", getFileController)
+repoRouter.get("/api/:commitId/:nodeId",getNodesController);
+repoRouter.get("/api/:repoId",repoViewController);

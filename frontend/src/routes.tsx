@@ -10,6 +10,7 @@ import Mainview from './Mainview.tsx'
 import CreateView from './CreateView.tsx'
 import App from './App.tsx'
 import RepoView from './RepoView.tsx'
+import CommitsView from './CommitsView.tsx'
 import {newRepoAction} from './actions/newRepoAction.ts'
 import {loginAction, signUpAction} from './actions/authActions.ts'
 import PrivateRoute from './PrivateRoutes.tsx'
@@ -18,6 +19,8 @@ import FileView from './FileView.tsx'
 import {fileContentLoader} from './loaders/fileLoader.ts'
 import {reposLoader} from './loaders/reposLoader.ts'
 import {repoNodesLoader} from './loaders/nodeLoader.ts'
+import {commitsLoader} from './loaders/commitsLoader.ts'
+
 import {useAuthStore} from './store/authStore.ts';
 
 const routes:RouteObject[] = [
@@ -65,6 +68,11 @@ const routes:RouteObject[] = [
                 path:"createview",
                 element:<CreateView />,
                 action: newRepoAction,
+            },
+            {
+                path:"commitsview/:repoId",
+                element:<CommitsView />,
+                loader:commitsLoader,
             },
             {
                 path: "repoview/:repoId/:repoName",

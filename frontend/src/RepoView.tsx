@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { useLoaderData } from "react-router";
+import { useLoaderData ,Link} from "react-router";
 import FileTree from "./components/FileTree";
 import Terminal from "./components/Terminal";
 import { useRepoStore } from "./store/repoStore";
-
+import {Button} from './components/ui/button'
 const symbolMap = {
   move: ">",
   rename: "→",
@@ -24,6 +24,7 @@ export default function RepoView() {
   const nodes = useRepoStore((s) => s.nodes);
   const stagedNodes = useRepoStore((s) => s.stagedNodes);
   const repoName = useRepoStore((s) => s.repoName);
+  const repoId = useRepoStore((s)=>s.repoId);
   const stagedChanges = useRepoStore((s)=>s.stagedChanges)
   const visibleNodes = useMemo(() => (mode === "staging" ? stagedNodes : nodes), [
     mode,
@@ -76,6 +77,7 @@ export default function RepoView() {
           )}
         </div>
 
+      <Button className="font-thin border-2"><Link to={`/app/commitsview/${repoId}`} >View Commits</Link></Button>
       <div className="mt-4 pt-4">
         <div className="text-4xl mb-4 font-bold">{repoName}</div>
 
