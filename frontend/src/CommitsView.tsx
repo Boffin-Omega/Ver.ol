@@ -4,9 +4,9 @@ import type { Commit } from "./types";
 export default function CommitsView() {
   const { commits } = useLoaderData() as { commits: Commit[] };
 
-  // Sort commits by date (ascending)
+  // Sort commits by date (descending)
   const sortedCommits = [...commits].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
   // Group commits by date (YYYY-MM-DD)
