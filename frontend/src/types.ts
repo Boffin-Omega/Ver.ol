@@ -38,6 +38,13 @@ export type Change =
       payload: {
         deletedNodeName:string
       };
+    }
+  | {
+      type: "edit";
+      nodeId: string;
+      payload: {
+        newContent: string;
+      };
     };
 export type UINode = node & { isExpanded?: boolean; children?: UINode[] };
 

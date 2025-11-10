@@ -8,12 +8,14 @@ const symbolMap = {
   move: ">",
   rename: "→",
   delete: "-",
+  edit: "✎",
 };
 
 const colorMap = {
   move: "text-blue-700",
   rename: "text-orange-400",
   delete: "text-red-700",
+  edit: "text-green-600",
 };
 
 export default function RepoView() {
@@ -31,6 +33,18 @@ export default function RepoView() {
     nodes,
     stagedNodes,
   ]);
+
+  // Helper function to find node by ID
+  const findNodeById = (nodeId: string, nodesToSearch: typeof nodes): typeof nodes[0] | null => {
+    for (const node of nodesToSearch) {
+      if (node._id === nodeId) return node;
+      if (node.children) {
+        const found = findNodeById(nodeId, node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   if (!visibleNodes) return null;
 
@@ -67,6 +81,16 @@ export default function RepoView() {
                     {change.type === "delete" &&
                     <span className={colorMap[change.type]}>
                       {`${symbolMap[change.type]} Deleted ${change.payload.deletedNodeName}`}
+                    </span>
+                    }
+
+                    {change.type === "edit" &&
+                    <span className={colorMap[change.type]}>
+                      {(() => {
+                        const editedNode = findNodeById(change.nodeId, visibleNodes);
+                        const fileName = editedNode?.name || `nodeId: ${change.nodeId}`;
+                        return `${symbolMap[change.type]} Edited ${fileName}`;
+                      })()}
                     </span>
                     }
                   </li>

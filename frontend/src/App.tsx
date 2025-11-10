@@ -18,6 +18,7 @@ import {Sidebar, SidebarHeader,
 
 import {Outlet, Link, useLoaderData} from 'react-router'
 import Navbar02 from "./components/Navbar02";
+import { useRepoStore } from "./store/repoStore";
 
 
 //shud check up on this interface
@@ -32,6 +33,9 @@ interface repo{
 }
 export default function App(){
     const repos = useLoaderData();
+    const mode = useRepoStore((state) => state.mode);
+    const isStagingMode = mode === "staging";
+    
     // const repos = [
     //     {
     //         id:'r1',
@@ -46,7 +50,7 @@ export default function App(){
                         <span>DashBoard</span>
                     </SidebarHeader>
 
-                    <SidebarContent>
+                    <SidebarContent className={isStagingMode ? "pointer-events-none opacity-50" : ""}>
                         <SidebarGroup>
                             <SidebarGroupContent>
                                 <SidebarMenuItem>
