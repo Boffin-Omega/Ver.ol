@@ -27,6 +27,11 @@ export type Change = | {
       type: "edit";
       nodeId: string;
       payload: {newContent: string};
+    } |
+    {
+      type: "create";
+      nodeId: string;
+      payload: {fileName: string, parentNodeId: string};
     }
 export type UINode = node & { isExpanded?: boolean; children?: UINode[] };
 

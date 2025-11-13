@@ -45,6 +45,14 @@ export type Change =
       payload: {
         newContent: string;
       };
+    }
+  | {
+      type: "create";
+      nodeId: string;
+      payload: {
+        fileName: string;
+        parentNodeId: string;
+      };
     };
 export type UINode = node & { isExpanded?: boolean; children?: UINode[] };
 
