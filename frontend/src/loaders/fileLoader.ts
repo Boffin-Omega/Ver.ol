@@ -8,6 +8,15 @@ export async function fileContentLoader({ params }: LoaderFunctionArgs) {
 
   if (!fileId) throw Error("fileId not found");
 
+  // Handle temporary nodes (newly created files that haven't been committed yet)
+  if (fileId.startsWith('temp_')) {
+    return { 
+      fileContent: '', 
+      fileName, 
+      contentType: 'text/plain' 
+    };
+  }
+
   try {
     const res = await authFetch(`${BASE_URL}/app/repo/api/getFile/${fileId}`);
     if (!res.ok) throw new Error(`Error with status code: ${res.status}`);
