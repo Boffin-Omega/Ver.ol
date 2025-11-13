@@ -1,10 +1,11 @@
 import Commit from "../models/commit.js";
-import Node from "../models/node.js";
+import Node, { type INode } from "../models/node.js";
 import Repository from "../models/repository.js";
 import { Types } from "mongoose";
 import type { Change } from "../types.js";
 import { createNode, renameNode, moveNode, deleteNodeAndDescendants, updateNode } from "./nodeService.js";
 import { uploadFileToGridFS } from "./storageService.js";
+import { timeStamp } from "console";
 
 export const createCommit = async(
     _id: Types.ObjectId,
@@ -65,8 +66,42 @@ export const applyChangesToNewCommit = async(
 
     // apply changes using nodeService functions
     for(const change of changes) {
+        // handle "create" separately since it doesn't have an existing nodeId in the parent commit
+        if(change.type === "create") {
+            const fileName = change.payload.fileName;
+            const oldParentNodeId = change.payload.parentNodeId;
+            
+            const newParentNodeId = idMap.get(oldParentNodeId);
+            if(!newParentNodeId) {
+                console.error(`Parent node ${oldParentNodeId} not found in idMap`);
+                continue;
+            }
+                        
+            const newFileContent = "";
+            const fileBuffer = Buffer.from(newFileContent, 'utf-8');
+            const stringifiedRepoId = repoId as unknown as string;
+            const newGridFSFileId = await uploadFileToGridFS(fileBuffer, stringifiedRepoId);
+            const newFileNodeData = {
+                repoId: repoId,
+                commitId: newCommitId,
+                parentNodeId: newParentNodeId,
+                name: fileName,
+                type: "file" as "file",
+                gridFSFileId: newGridFSFileId,
+                timestamp: new Date()
+            };
+
+            const createdNode = await createNode(newFileNodeData);
+            newNodes.push(createdNode);
+            continue; // Move to next change
+        }
+
+        // for all other change types, we need to map the nodeId from parent commit
         const newNodeId = idMap.get(change.nodeId);
-        if(!newNodeId) continue; // node doesn't exist
+        if(!newNodeId) {
+            console.log(`Node ${change.nodeId} not found in idMap, skipping ${change.type} change`);
+            continue;
+        }
 
         if(change.type === "rename" && "newName" in change.payload) {
             await renameNode(newNodeId, change.payload.newName);
