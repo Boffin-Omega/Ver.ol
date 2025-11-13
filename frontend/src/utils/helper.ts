@@ -27,12 +27,16 @@ export async function appendChildrenNodes(node: UINode) {
   const { appendChildren } = useRepoStore.getState();
 
   // Don't refetch if already populated
-  if (node.children && node.children.length > 0) return;
+  if (node.children && node.children.length > 0) {
+    console.log(`Skipping fetch for ${node.name} - already has ${node.children.length} children`);
+    return;
+  }
 
+  console.log(`Fetching children for ${node.name} (ID: ${node._id}, Commit: ${node.commitId})`);
   const res = await authFetch(`${BASE_URL}/app/repo/api/${node.commitId}/${node._id}`);
   const children = await res.json();
 
-  console.log(`Children of ${node.name}`, children);
+  console.log(`Received ${children.length} children for ${node.name}:`, children.map((c: UINode) => c.name));
   appendChildren(node._id, children);
 }
 
@@ -310,4 +314,88 @@ export function delHelper(nodeName: string) {
 
   console.log(useRepoStore.getState().stagedChanges);
   return `Deleted ${nodeName}`;
+}
+
+// Helper to add a new node to the tree
+function addNodeToTree(nodes: UINode[], newNode: UINode, parentId: string): UINode[] {
+  return nodes.map(node => {
+    // Add new node to parent's children
+    if (node._id === parentId) {
+      return {
+        ...node,
+        children: [...(node.children || []), newNode],
+      };
+    }
+
+    // Recursively process children
+    if (node.children && node.children.length > 0) {
+      return {
+        ...node,
+        children: addNodeToTree(node.children, newNode, parentId),
+      };
+    }
+
+    return node;
+  });
+}
+
+export function createHelper(fileName: string) {
+  const mode = useRepoStore.getState().mode;
+  if (mode !== "staging") return "Please switch to staging mode!";
+  if (!fileName || fileName.trim() === '') return 'Invalid arguments: please provide a file name';
+
+  const pwd = useTerminalStore.getState().pwd;
+  const currWorkingDir = findcwdNode(pwd);
+  if (!currWorkingDir) return 'Invalid pwd path';
+
+  // Check if file already exists
+  if (currWorkingDir.children?.some(child => child.name === fileName)) {
+    return `${fileName} already exists in current directory!`;
+  }
+
+  const { repoId, commitId } = useRepoStore.getState();
+
+  // Create a temporary node ID (will be replaced by backend)
+  const tempNodeId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // Create new node
+  const newNode: UINode = {
+    _id: tempNodeId,
+    repoId,
+    commitId,
+    parentNodeId: currWorkingDir._id,
+    name: fileName,
+    type: 'file',
+    gridFSFileId: null,
+    timestamp: new Date(),
+    children: undefined,
+  };
+
+  // Deep clone to avoid mutations
+  const stagedNodes = structuredClone(useRepoStore.getState().stagedNodes);
+
+  // Add new node to tree
+  const updatedNodes = addNodeToTree(stagedNodes, newNode, currWorkingDir._id);
+
+  useRepoStore.setState({ stagedNodes: updatedNodes });
+
+  console.log('After creating', useRepoStore.getState().stagedNodes);
+
+  // Add to staged changes
+  const stagedChanges = useRepoStore.getState().stagedChanges;
+  const change: Change = {
+    type: "create",
+    nodeId: tempNodeId,
+    payload: { 
+      fileName,
+      parentNodeId: currWorkingDir._id
+    }
+  };
+  useRepoStore.setState({ stagedChanges: [...stagedChanges, change] });
+
+  console.log('CREATE CHANGE ADDED:', change);
+  console.log('Current working directory ID:', currWorkingDir._id);
+  console.log('Current working directory name:', currWorkingDir.name);
+  console.log('All staged changes:', useRepoStore.getState().stagedChanges);
+  return `Created ${fileName}`;
 }

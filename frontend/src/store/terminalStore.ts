@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useRepoStore } from "./repoStore";
 import { useAuthStore } from "./authStore";
-import {listAll,cwd,renameHelper, move, delHelper} from '../utils/helper'
+import {listAll,cwd,renameHelper, move, delHelper, createHelper} from '../utils/helper'
 import { createCommitAction } from "../actions/commitAction";
 import { authFetch } from "../utils/authFetch";
 
@@ -129,6 +129,10 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       const nodeName = arg.trim();
       return delHelper(nodeName);
     },
+    create:(arg:string)=>{
+      const fileName = arg.trim();
+      return createHelper(fileName);
+    },
     y: () => {
       const { awaitingDiscardConfirm } = get();
       if (!awaitingDiscardConfirm) return "command not found";
@@ -189,17 +193,29 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         
         const { repoRoot, repoNodes } = await response.json();
 
+        // Clear any expanded state and children to force fresh fetch
+        const cleanNodes = [repoRoot, ...repoNodes].map((node: any) => ({
+          ...node,
+          isExpanded: false,
+          children: undefined
+        }));
+
         // Update the store with new commit data
         useRepoStore.setState({ 
           commitId: newCommitId,
           stagedChanges: [],
           mode: "viewing",
-          nodes: [...repoNodes, repoRoot],
+          nodes: cleanNodes,
           stagedNodes: []
         });
         
-        // Update children for root node
-        useRepoStore.getState().appendChildren(repoRoot._id, repoNodes);
+        // Update children for root node (only direct children from backend response)
+        const rootChildren = repoNodes.map((node: any) => ({
+          ...node,
+          isExpanded: false,
+          children: undefined
+        }));
+        useRepoStore.getState().appendChildren(repoRoot._id, rootChildren);
 
         return `Commit created successfully: ${newCommitId}\n${message}`;
       } catch (error) {
@@ -209,7 +225,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     },
 
     help: () =>
-      "Available commands: pwd, whoami, echo, ls, cd, mode, mv, rename, del, commit, help",
+      "Available commands: pwd, whoami, echo, ls, cd, mode, mv, rename, del, create, commit, help",
     
   },
 
