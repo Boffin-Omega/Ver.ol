@@ -42,7 +42,7 @@ Implementation details are documented in the `/docs` directory.
 ---
 
 ## Demo
-[Check out the link to Ver.ol Demo here!](https://github.com/user-attachments/assets/3adbc389-4e16-4f22-8dad-42bcb7f9765f)
+[Check out the Ver.ol Demo Here!](https://github.com/user-attachments/assets/836ee725-1f8a-4357-83ab-85369d24114b)
 
 ---
 
