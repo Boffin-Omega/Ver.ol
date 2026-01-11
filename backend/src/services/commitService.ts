@@ -92,6 +92,7 @@ export const applyChangesToNewCommit = async(
             };
 
             const createdNode = await createNode(newFileNodeData);
+            idMap.set(change.nodeId.toString(), createdNode._id); //map temp node id to its newly creatednode id, allows for creating and editing changes within same commit to be processed correctly
             newNodes.push(createdNode);
             continue; // Move to next change
         }
